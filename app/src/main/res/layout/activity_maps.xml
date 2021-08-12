@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:map="http://schemas.android.com/apk/res-auto"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/activity_map_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical">
+
+    <fragment
+        android:id="@+id/map"
+        android:name="com.google.android.gms.maps.SupportMapFragment"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        tools:context=".MapsActivity" />
+    <EditText
+        android:id="@+id/activity_maps_address_edit_text"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingVertical="10dp"
+        android:paddingHorizontal="18dp"
+        android:background="@drawable/background_filled_round_corner"
+        android:textSize="20sp"
+        android:layout_marginHorizontal="10dp"
+        android:focusable="false"
+        android:layout_marginVertical="10dp"
+        android:hint="Address"
+        />
+    <EditText
+        android:id="@+id/activity_maps_coordinates_edit_text"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Enter LatLong"
+        android:paddingVertical="6dp"
+        android:paddingHorizontal="18dp"
+        android:textSize="18sp"
+        android:digits="0123456789,.-"
+        android:inputType="numberDecimal|numberSigned"
+        android:background="@drawable/background_filled_round_corner"
+        android:layout_marginHorizontal="50dp"
+        android:layout_above="@id/activity_maps_radius_edit_text"
+       />
+    <EditText
+        android:id="@+id/activity_maps_radius_edit_text"
+        android:layout_width="match_parent"
+        android:paddingVertical="6dp"
+        android:paddingHorizontal="18dp"
+        android:textSize="18sp"
+        android:inputType="numberDecimal|numberSigned"
+        android:layout_height="wrap_content"
+        android:hint="Enter radius in meters"
+        android:background="@drawable/background_filled_round_corner"
+        android:layout_above="@id/activity_maps_submit_button"
+        android:layout_marginHorizontal="50dp"
+        android:layout_marginVertical="10dp"
+        android:layout_gravity="bottom"/>
+    <Button
+        android:id="@+id/activity_maps_submit_button"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_centerHorizontal="true"
+        android:layout_alignParentBottom="true"
+        android:layout_marginVertical="20dp"
+
+        android:text="Submit"
+        />
+</RelativeLayout>
