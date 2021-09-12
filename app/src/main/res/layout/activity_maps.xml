@@ -1,7 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:map="http://schemas.android.com/apk/res-auto"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/activity_map_root"
     android:layout_width="match_parent"
@@ -14,55 +12,71 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         tools:context=".MapsActivity" />
+
     <EditText
         android:id="@+id/activity_maps_address_edit_text"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:paddingVertical="10dp"
-        android:paddingHorizontal="18dp"
-        android:background="@drawable/background_filled_round_corner"
-        android:textSize="20sp"
         android:layout_marginHorizontal="10dp"
-        android:focusable="false"
         android:layout_marginVertical="10dp"
-        android:hint="Address"
-        />
+        android:background="@drawable/background_filled_round_corner"
+        android:focusable="false"
+        android:fontFamily="@font/muli"
+        android:hint="@string/maps_address_hint"
+        android:paddingHorizontal="18dp"
+        android:paddingVertical="10dp"
+        android:textColor="@color/black"
+        android:textColorHint="@color/hint"
+        android:textSize="20sp" />
+
     <EditText
         android:id="@+id/activity_maps_coordinates_edit_text"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="Enter LatLong"
-        android:paddingVertical="6dp"
-        android:paddingHorizontal="18dp"
-        android:textSize="18sp"
-        android:digits="0123456789,.-"
-        android:inputType="numberDecimal|numberSigned"
-        android:background="@drawable/background_filled_round_corner"
-        android:layout_marginHorizontal="50dp"
         android:layout_above="@id/activity_maps_radius_edit_text"
-       />
+        android:layout_marginHorizontal="50dp"
+        android:background="@drawable/background_filled_round_corner"
+        android:digits="0123456789,.-"
+        android:fontFamily="@font/muli"
+        android:hint="@string/maps_latlong_hint"
+        android:inputType="numberDecimal|numberSigned"
+        android:paddingHorizontal="18dp"
+        android:paddingVertical="6dp"
+        android:textColor="@color/black"
+        android:textColorHint="@color/hint"
+        android:textSize="18sp" />
+
     <EditText
         android:id="@+id/activity_maps_radius_edit_text"
         android:layout_width="match_parent"
-        android:paddingVertical="6dp"
-        android:paddingHorizontal="18dp"
-        android:textSize="18sp"
-        android:inputType="numberDecimal|numberSigned"
         android:layout_height="wrap_content"
-        android:hint="Enter radius in meters"
-        android:background="@drawable/background_filled_round_corner"
         android:layout_above="@id/activity_maps_submit_button"
+        android:layout_gravity="bottom"
         android:layout_marginHorizontal="50dp"
         android:layout_marginVertical="10dp"
-        android:layout_gravity="bottom"/>
+        android:background="@drawable/background_filled_round_corner"
+        android:fontFamily="@font/muli"
+        android:hint="@string/maps_radius_hint"
+        android:inputType="numberDecimal|numberSigned"
+        android:paddingHorizontal="18dp"
+        android:paddingVertical="6dp"
+        android:textColor="@color/black"
+        android:textColorHint="@color/hint"
+        android:textSize="18sp" />
+
     <Button
         android:id="@+id/activity_maps_submit_button"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_centerHorizontal="true"
         android:layout_alignParentBottom="true"
+        android:layout_centerHorizontal="true"
         android:layout_marginVertical="20dp"
+        android:background="@drawable/ic_rectangle_black"
+        android:fontFamily="@font/muli"
+        android:text="@string/maps_button_text"
+        android:textAllCaps="false"
+        android:paddingHorizontal="20dp"
+        android:textColor="@color/white"
+        android:textSize="18sp" />
 
-        android:text="Submit"
-        />
 </RelativeLayout>

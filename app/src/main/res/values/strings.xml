@@ -1,4 +1,7 @@
 <resources>
     <string name="app_name">Location Notifier</string>
-    <string name="title_activity_maps">Map</string>
+    <string name="maps_address_hint">Address</string>
+    <string name="maps_latlong_hint">Enter LatLong</string>
+    <string name="maps_radius_hint">Enter Radius (in meters)</string>
+    <string name="maps_button_text">Submit</string>
 </resources>

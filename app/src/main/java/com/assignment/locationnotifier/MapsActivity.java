@@ -55,7 +55,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private LatLng latLng;
     private GeofencingClient geofencingClient;
     private GeofenceHelper geofenceHelper;
-    private final String GEOFENCE_ID = "IDGJHGHJBNCVC";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -66,7 +65,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         latLongEditText = binding.activityMapsCoordinatesEditText;
         radiusEditText = binding.activityMapsRadiusEditText;
         addressEditText = binding.activityMapsAddressEditText;
-        binding.activityMapsSubmitButton.setOnClickListener(v -> onSubmitClicked(v));
+        binding.activityMapsSubmitButton.setOnClickListener(this::onSubmitClicked);
         // Obtain the SupportMapFragment and get notified when the map is ready to be used.
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
@@ -88,24 +87,19 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     @Override
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
-        getUserLocation();
-        enableUserLocation();
+        if(checkPermission())
+            getUserLocation();
+        else
+            requestLocationPermissions();
     }
 
-    private void enableUserLocation() {
-        if (checkPermission())
-            mMap.setMyLocationEnabled(true);
-        else {
-            //Ask for permission
-            if (Build.VERSION.SDK_INT >= 29) {
-                //We need background permission
-                if (checkPermission())
-                    mMap.setMyLocationEnabled(true);
-                else
-                    ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_BACKGROUND_LOCATION}, BACKGROUND_LOCATION_ACCESS_REQUEST_CODE);
-            }
+    private void requestLocationPermissions() {
+        if (Build.VERSION.SDK_INT < 29)
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.ACCESS_FINE_LOCATION}, FINE_LOCATION_ACCESS_REQUEST_CODE);
+        else if (Build.VERSION.SDK_INT == 29)
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_BACKGROUND_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.ACCESS_FINE_LOCATION}, BACKGROUND_LOCATION_ACCESS_REQUEST_CODE);
+        else if (Build.VERSION.SDK_INT > 29)
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, FINE_LOCATION_ACCESS_REQUEST_CODE);
-        }
     }
 
     private boolean checkPermission() {
@@ -113,27 +107,50 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             return ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_BACKGROUND_LOCATION) == PackageManager.PERMISSION_GRANTED;
         else
             return ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED;
-
     }
 
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == FINE_LOCATION_ACCESS_REQUEST_CODE) {
-            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                if (checkPermission()) {
-                    mMap.setMyLocationEnabled(true);
-                }
-            } else
-                Toast.makeText(this, "Permission Denied", Toast.LENGTH_LONG).show();
-        }
 
-        if (requestCode == BACKGROUND_LOCATION_ACCESS_REQUEST_CODE) {
+        if (Build.VERSION.SDK_INT < 29 && requestCode == FINE_LOCATION_ACCESS_REQUEST_CODE) {
             if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                //We have the permission
-                Toast.makeText(this, "You can add geofences...", Toast.LENGTH_SHORT).show();
-            } else
-                Toast.makeText(this, "Background location access is neccessary for geofences to trigger...", Toast.LENGTH_SHORT).show();
+                if (checkPermission())
+                    mMap.setMyLocationEnabled(true);
+                Toast.makeText(this, "Permissions Granted\nYou can add geofence...", Toast.LENGTH_SHORT).show();
+                Log.e(TAG, "onRequestPermissionsResult: " + "background permission granted");
+            } else {
+                Log.e(TAG, "onRequestPermissionsResult: " + "background permission DENIED");
+                Toast.makeText(this, "Permission Denied\nThe app will not work", Toast.LENGTH_SHORT).show();
+            }
+        } else if (Build.VERSION.SDK_INT == 29 && requestCode == BACKGROUND_LOCATION_ACCESS_REQUEST_CODE) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                if (checkPermission())
+                    mMap.setMyLocationEnabled(true);
+                Log.e(TAG, "onRequestPermissionsResult: " + "Android 10 Background permission granted");
+                Toast.makeText(this, "Permissions Granted\nYou can add geofences...", Toast.LENGTH_SHORT).show();
+                getUserLocation();
+            } else {
+                Log.e(TAG, "onRequestPermissionsResult: " + "Android 10 Background permission DENIED");
+                Toast.makeText(this, "Background location access is necessary for geofences to trigger. \nThe app will not work", Toast.LENGTH_SHORT).show();
+            }
+        } else if (Build.VERSION.SDK_INT > 29 && requestCode == FINE_LOCATION_ACCESS_REQUEST_CODE) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                Log.e(TAG, "onRequestPermissionsResult: " + "Android 11 FINE permission granted");
+                ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_BACKGROUND_LOCATION}, BACKGROUND_LOCATION_ACCESS_REQUEST_CODE);
+            } else {
+                Log.e(TAG, "onRequestPermissionsResult: " + "Android 11 fINE permission DENIED");
+                Toast.makeText(this, "Permission Denied\nApp will not work unless granted location permissions", Toast.LENGTH_LONG).show();
+            }
+        } else if (Build.VERSION.SDK_INT > 29 && requestCode == BACKGROUND_LOCATION_ACCESS_REQUEST_CODE) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                Toast.makeText(this, "Permissions Granted\nYou can add geofence...", Toast.LENGTH_SHORT).show();
+                Log.e(TAG, "onRequestPermissionsResult: " + "Android 11 Background permission granted");
+                getUserLocation();
+            } else {
+                Log.e(TAG, "onRequestPermissionsResult: " + "Android 11 Background permission DENIED");
+                Toast.makeText(this, "Permissions Denied \nPlease select 'Allow All the time' option\nWe need background permissions to run geofence", Toast.LENGTH_SHORT).show();
+            }
         }
     }
 
@@ -146,10 +163,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         @Override
                         public void onLocationChanged(Location location) {
                             LatLng userLocation = new LatLng(location.getLatitude(), location.getLongitude());
-                            if (userLocation != null) {
-                                mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(userLocation, 17));
-                            }
-                            addressEditText.setText("Your Location : " + userLocation.latitude + "," + userLocation.longitude);
+                            mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(userLocation, 17));
+                            addressEditText.setText(String.format("Current Location : %s,%s", userLocation.latitude, userLocation.longitude));
                         }
 
                         @Override
@@ -175,16 +190,17 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     runtimeRemoteException.printStackTrace();
                 }
             } else {
-                Snackbar.make(binding.activityMapRoot, "Please turn on your location", Snackbar.LENGTH_LONG)
+                Snackbar.make(binding.activityMapRoot, "Please turn on your location", Snackbar.LENGTH_INDEFINITE)
                         .setAction("TURN ON", v -> {
                             Intent intent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
                             startActivityForResult(intent, FINE_LOCATION_ACCESS_REQUEST_CODE);
                         })
                         .show();
             }
-        } else
-            enableUserLocation();
-    }
+        } else{
+            Toast.makeText(this, "Background location access is necessary for geofences to trigger. \nThe app will not work", Toast.LENGTH_LONG).show();
+        }
+}
 
     private boolean isLocationEnabled(LocationManager locationManager) {
         return locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER) || locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER);
@@ -228,6 +244,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     }
 
     private void addGeofence(LatLng latLng, float radius) {
+        String GEOFENCE_ID = "IDGJHGHJBNCVC";
         Geofence geofence = geofenceHelper.getGeofence(GEOFENCE_ID, latLng, radius, Geofence.GEOFENCE_TRANSITION_ENTER | Geofence.GEOFENCE_TRANSITION_EXIT);
         GeofencingRequest geofencingRequest = geofenceHelper.getGeofencingRequest(geofence);
         PendingIntent pendingIntent = geofenceHelper.getPendingIntent();
