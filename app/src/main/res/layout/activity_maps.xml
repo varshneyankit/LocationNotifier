@@ -39,6 +39,7 @@
         android:digits="0123456789,.-"
         android:fontFamily="@font/muli"
         android:hint="@string/maps_latlong_hint"
+        android:imeOptions="actionNext"
         android:inputType="numberDecimal|numberSigned"
         android:paddingHorizontal="18dp"
         android:paddingVertical="6dp"
@@ -60,6 +61,7 @@
         android:inputType="numberDecimal|numberSigned"
         android:paddingHorizontal="18dp"
         android:paddingVertical="6dp"
+        android:imeOptions="actionDone"
         android:textColor="@color/black"
         android:textColorHint="@color/hint"
         android:textSize="18sp" />

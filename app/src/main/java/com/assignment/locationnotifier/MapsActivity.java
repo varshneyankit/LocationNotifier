@@ -244,7 +244,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     }
 
     private void addGeofence(LatLng latLng, float radius) {
-        String GEOFENCE_ID = "IDGJHGHJBNCVC";
+        final String GEOFENCE_ID = "IDGJHGHJBNCVC";
         Geofence geofence = geofenceHelper.getGeofence(GEOFENCE_ID, latLng, radius, Geofence.GEOFENCE_TRANSITION_ENTER | Geofence.GEOFENCE_TRANSITION_EXIT);
         GeofencingRequest geofencingRequest = geofenceHelper.getGeofencingRequest(geofence);
         PendingIntent pendingIntent = geofenceHelper.getPendingIntent();

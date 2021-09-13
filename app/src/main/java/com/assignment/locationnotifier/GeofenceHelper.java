@@ -40,8 +40,9 @@ public class GeofenceHelper extends ContextWrapper {
     public PendingIntent getPendingIntent(){
         if(pendingIntent!=null)
             return pendingIntent;
+        final int GEOFENCE_BROADCAST_RECEIVER_REQUEST_CODE = 1221;
         Intent intent = new Intent(this,GeofenceBroadcastReceiver.class);
-        pendingIntent = PendingIntent.getBroadcast(this,1221,intent,PendingIntent.FLAG_UPDATE_CURRENT);
+        pendingIntent = PendingIntent.getBroadcast(this,GEOFENCE_BROADCAST_RECEIVER_REQUEST_CODE,intent,PendingIntent.FLAG_UPDATE_CURRENT);
         return pendingIntent;
     }
 
