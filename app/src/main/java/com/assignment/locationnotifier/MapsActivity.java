@@ -1,6 +1,7 @@
 package com.assignment.locationnotifier;
 
 import android.Manifest;
+import android.app.Activity;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
@@ -20,6 +21,8 @@ import android.view.View;
 import android.widget.EditText;
 import android.widget.Toast;
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.core.app.ActivityCompat;
 import androidx.fragment.app.FragmentActivity;
@@ -43,25 +46,29 @@ import com.google.android.material.snackbar.Snackbar;
 import java.io.IOException;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback {
 
     private final int FINE_LOCATION_ACCESS_REQUEST_CODE = 1010;
     private final int BACKGROUND_LOCATION_ACCESS_REQUEST_CODE = 1011;
     private final String TAG = "Maps Activity";
+    private final MarkerOptions markerOptions = new MarkerOptions();
     private GoogleMap mMap;
     private ActivityMapsBinding binding;
     private EditText latLongEditText, radiusEditText, addressEditText;
     private LatLng latLng;
     private GeofencingClient geofencingClient;
     private GeofenceHelper geofenceHelper;
+    private ActivityResultLauncher<Intent> locationSettingsResultLauncher;
+    private SharedPreferencesConfig preferencesConfig;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
         binding = ActivityMapsBinding.inflate(getLayoutInflater());
         setContentView(binding.activityMapRoot);
+        preferencesConfig = new SharedPreferencesConfig(this);
         latLongEditText = binding.activityMapsCoordinatesEditText;
         radiusEditText = binding.activityMapsRadiusEditText;
         addressEditText = binding.activityMapsAddressEditText;
@@ -69,10 +76,16 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         // Obtain the SupportMapFragment and get notified when the map is ready to be used.
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
-        mapFragment.getMapAsync(this);
+        Objects.requireNonNull(mapFragment).getMapAsync(this);
 
         geofencingClient = LocationServices.getGeofencingClient(this);
         geofenceHelper = new GeofenceHelper(this);
+        locationSettingsResultLauncher = registerForActivityResult(
+                new ActivityResultContracts.StartActivityForResult(),
+                result -> {
+                    if (result.getResultCode() == Activity.RESULT_CANCELED)
+                        getUserLocation();
+                });
     }
 
     /**
@@ -85,10 +98,15 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
      * installed Google Play services and returned to the app.
      */
     @Override
-    public void onMapReady(GoogleMap googleMap) {
+    public void onMapReady(@NonNull GoogleMap googleMap) {
         mMap = googleMap;
-        if(checkPermission())
-            getUserLocation();
+        if (checkPermission()){
+            if(preferencesConfig.readLocation()!=null && preferencesConfig.readRadius()!=null){
+                latLongEditText.setText(preferencesConfig.readLocation());
+                radiusEditText.setText(preferencesConfig.readRadius());
+                binding.activityMapsSubmitButton.performClick();
+            }else
+                getUserLocation();}
         else
             requestLocationPermissions();
     }
@@ -98,7 +116,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.ACCESS_FINE_LOCATION}, FINE_LOCATION_ACCESS_REQUEST_CODE);
         else if (Build.VERSION.SDK_INT == 29)
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_BACKGROUND_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.ACCESS_FINE_LOCATION}, BACKGROUND_LOCATION_ACCESS_REQUEST_CODE);
-        else if (Build.VERSION.SDK_INT > 29)
+        else
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, FINE_LOCATION_ACCESS_REQUEST_CODE);
     }
 
@@ -112,95 +130,73 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-
-        if (Build.VERSION.SDK_INT < 29 && requestCode == FINE_LOCATION_ACCESS_REQUEST_CODE) {
+        if ((Build.VERSION.SDK_INT < 29 && requestCode == FINE_LOCATION_ACCESS_REQUEST_CODE) || (Build.VERSION.SDK_INT == 29 && requestCode == BACKGROUND_LOCATION_ACCESS_REQUEST_CODE) || (Build.VERSION.SDK_INT > 29 && requestCode == BACKGROUND_LOCATION_ACCESS_REQUEST_CODE)) {
             if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                 if (checkPermission())
                     mMap.setMyLocationEnabled(true);
                 Toast.makeText(this, "Permissions Granted\nYou can add geofence...", Toast.LENGTH_SHORT).show();
+                getUserLocation();
                 Log.e(TAG, "onRequestPermissionsResult: " + "background permission granted");
             } else {
                 Log.e(TAG, "onRequestPermissionsResult: " + "background permission DENIED");
                 Toast.makeText(this, "Permission Denied\nThe app will not work", Toast.LENGTH_SHORT).show();
             }
-        } else if (Build.VERSION.SDK_INT == 29 && requestCode == BACKGROUND_LOCATION_ACCESS_REQUEST_CODE) {
-            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                if (checkPermission())
-                    mMap.setMyLocationEnabled(true);
-                Log.e(TAG, "onRequestPermissionsResult: " + "Android 10 Background permission granted");
-                Toast.makeText(this, "Permissions Granted\nYou can add geofences...", Toast.LENGTH_SHORT).show();
-                getUserLocation();
-            } else {
-                Log.e(TAG, "onRequestPermissionsResult: " + "Android 10 Background permission DENIED");
-                Toast.makeText(this, "Background location access is necessary for geofences to trigger. \nThe app will not work", Toast.LENGTH_SHORT).show();
-            }
         } else if (Build.VERSION.SDK_INT > 29 && requestCode == FINE_LOCATION_ACCESS_REQUEST_CODE) {
             if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                 Log.e(TAG, "onRequestPermissionsResult: " + "Android 11 FINE permission granted");
+                //For Android 11 we have to perform incremental request to get background location.
                 ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_BACKGROUND_LOCATION}, BACKGROUND_LOCATION_ACCESS_REQUEST_CODE);
             } else {
                 Log.e(TAG, "onRequestPermissionsResult: " + "Android 11 fINE permission DENIED");
                 Toast.makeText(this, "Permission Denied\nApp will not work unless granted location permissions", Toast.LENGTH_LONG).show();
             }
-        } else if (Build.VERSION.SDK_INT > 29 && requestCode == BACKGROUND_LOCATION_ACCESS_REQUEST_CODE) {
-            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                Toast.makeText(this, "Permissions Granted\nYou can add geofence...", Toast.LENGTH_SHORT).show();
-                Log.e(TAG, "onRequestPermissionsResult: " + "Android 11 Background permission granted");
-                getUserLocation();
-            } else {
-                Log.e(TAG, "onRequestPermissionsResult: " + "Android 11 Background permission DENIED");
-                Toast.makeText(this, "Permissions Denied \nPlease select 'Allow All the time' option\nWe need background permissions to run geofence", Toast.LENGTH_SHORT).show();
-            }
         }
     }
 
     private void getUserLocation() {
-        if (checkPermission()) {
-            LocationManager locationManager = (LocationManager) this.getSystemService(Context.LOCATION_SERVICE);
-            if (isLocationEnabled(locationManager)) {
-                try {
-                    locationManager.requestSingleUpdate(LocationManager.GPS_PROVIDER, new LocationListener() {
-                        @Override
-                        public void onLocationChanged(Location location) {
-                            LatLng userLocation = new LatLng(location.getLatitude(), location.getLongitude());
-                            mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(userLocation, 17));
-                            addressEditText.setText(String.format("Current Location : %s,%s", userLocation.latitude, userLocation.longitude));
-                        }
+        LocationManager locationManager = (LocationManager) this.getSystemService(Context.LOCATION_SERVICE);
+        if (isLocationEnabled(locationManager)) {
+            try {
+                locationManager.requestSingleUpdate(LocationManager.GPS_PROVIDER, new LocationListener() {
+                    @Override
+                    public void onLocationChanged(Location location) {
+                        LatLng userLocation = new LatLng(location.getLatitude(), location.getLongitude());
+                        mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(userLocation, 17));
+                        addMarker(userLocation);
+                        addressEditText.setText(String.format("Current Location : %s,%s", userLocation.latitude, userLocation.longitude));
+                    }
 
-                        @Override
-                        public void onStatusChanged(String provider, int status, Bundle extras) {
+                    @Override
+                    public void onStatusChanged(String provider, int status, Bundle extras) {
 
-                        }
+                    }
 
-                        @Override
-                        public void onProviderEnabled(String provider) {
+                    @Override
+                    public void onProviderEnabled(String provider) {
 
-                        }
+                    }
 
-                        @Override
-                        public void onProviderDisabled(String provider) {
+                    @Override
+                    public void onProviderDisabled(String provider) {
 
-                        }
+                    }
 
-                    }, null);
-                } catch (SecurityException e) {
-                    Log.e(TAG, "getLastLocation: " + e.getMessage());
-                    e.printStackTrace();
-                } catch (RuntimeRemoteException runtimeRemoteException) {
-                    runtimeRemoteException.printStackTrace();
-                }
-            } else {
-                Snackbar.make(binding.activityMapRoot, "Please turn on your location", Snackbar.LENGTH_INDEFINITE)
-                        .setAction("TURN ON", v -> {
-                            Intent intent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
-                            startActivityForResult(intent, FINE_LOCATION_ACCESS_REQUEST_CODE);
-                        })
-                        .show();
+                }, null);
+            } catch (SecurityException e) {
+                Log.e(TAG, "getLastLocation: " + e.getMessage());
+                e.printStackTrace();
+            } catch (RuntimeRemoteException runtimeRemoteException) {
+                runtimeRemoteException.printStackTrace();
             }
-        } else{
-            Toast.makeText(this, "Background location access is necessary for geofences to trigger. \nThe app will not work", Toast.LENGTH_LONG).show();
+        } else {
+            Snackbar.make(binding.activityMapRoot, "Please turn on your location", Snackbar.LENGTH_INDEFINITE)
+                    .setAction("TURN ON", v -> {
+                        Intent intent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
+                        locationSettingsResultLauncher.launch(intent);
+                    })
+                    .show();
         }
-}
+    }
 
     private boolean isLocationEnabled(LocationManager locationManager) {
         return locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER) || locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER);
@@ -208,14 +204,22 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     public void onSubmitClicked(View view) {
         String inputCoordinates = latLongEditText.getText().toString();
+        String twoDoublesRegularExpression = "-?[1-9][0-9]?(\\.[0-9]+)?,\\s*-?[1-9][0-9][0-9]?(\\.[0-9]+)?";
         String radiusString = radiusEditText.getText().toString().trim();
-        if (!TextUtils.isEmpty(inputCoordinates) && inputCoordinates.contains(",") && !TextUtils.isEmpty(radiusString)) {
-            String[] latLngString = inputCoordinates.split(",");
-            latLng = new LatLng(Double.parseDouble(latLngString[0]), Double.parseDouble(latLngString[1]));
-            float radius = Float.parseFloat(radiusString);
-            setMarkers(latLng, radius);
-            setAddress();
-        }
+
+        if (!TextUtils.isEmpty(inputCoordinates) && inputCoordinates.matches(twoDoublesRegularExpression))
+            if (!TextUtils.isEmpty(radiusString)) {
+                String[] latLngString = inputCoordinates.split(",");
+                latLng = new LatLng(Double.parseDouble(latLngString[0]), Double.parseDouble(latLngString[1].trim()));
+                float radius = Float.parseFloat(radiusString);
+                preferencesConfig.writeLocation(inputCoordinates);
+                preferencesConfig.writeRadius(radiusString);
+                setMarkers(latLng, radius);
+                setAddress();
+            } else
+                Toast.makeText(this, "Radius can't be blank\nPlease enter radius", Toast.LENGTH_SHORT).show();
+        else
+            Toast.makeText(this, "Incorrect coordinates detected\nPlease enter valid coordinates", Toast.LENGTH_LONG).show();
     }
 
     private void setMarkers(LatLng latLng, float radius) {
@@ -227,8 +231,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     }
 
     private void addMarker(LatLng latLng) {
-        MarkerOptions markerOptions = new MarkerOptions()
-                .position(latLng)
+        markerOptions.position(latLng)
                 .icon(BitmapDescriptorFactory.fromResource(R.drawable.map_marker_icon));
         mMap.addMarker(markerOptions);
     }
@@ -270,4 +273,4 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }
     }
 }
-//28.6937,77.1106
+//28.6937,77.1106 for testing purpose only
