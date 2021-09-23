@@ -34,14 +34,10 @@ public class GeofenceBroadcastReceiver extends BroadcastReceiver {
         }
         int transitionType = geofencingEvent.getGeofenceTransition();
 
-        if(transitionType==Geofence.GEOFENCE_TRANSITION_ENTER){
+        if(transitionType==Geofence.GEOFENCE_TRANSITION_ENTER)
             notificationHelper.sendHighPriorityNotification("Geofence Notifier","User entered in geofence",MapsActivity.class);
-            Toast.makeText(context,"User entered in geofence",Toast.LENGTH_SHORT).show();
-        }
-        else if(transitionType== Geofence.GEOFENCE_TRANSITION_EXIT){
+        else if(transitionType== Geofence.GEOFENCE_TRANSITION_EXIT)
             notificationHelper.sendHighPriorityNotification("Geofence Notifier","User exited from geofence",MapsActivity.class);
-            Toast.makeText(context,"User exited from geofence",Toast.LENGTH_SHORT).show();
-        }
 
     }
 }

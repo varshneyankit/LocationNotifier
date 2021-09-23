@@ -15,9 +15,13 @@ import android.location.LocationManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.provider.Settings;
+import android.text.InputFilter;
+import android.text.Spanned;
 import android.text.TextUtils;
 import android.util.Log;
+import android.view.KeyEvent;
 import android.view.View;
+import android.view.inputmethod.EditorInfo;
 import android.widget.EditText;
 import android.widget.Toast;
 
@@ -57,7 +61,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private GoogleMap mMap;
     private ActivityMapsBinding binding;
     private EditText latLongEditText, radiusEditText, addressEditText;
-    private LatLng latLng;
     private GeofencingClient geofencingClient;
     private GeofenceHelper geofenceHelper;
     private ActivityResultLauncher<Intent> locationSettingsResultLauncher;
@@ -86,6 +89,21 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     if (result.getResultCode() == Activity.RESULT_CANCELED)
                         getUserLocation();
                 });
+        radiusEditText.setOnEditorActionListener((v, actionId, event) -> {
+            if ((event != null && (event.getKeyCode() == KeyEvent.KEYCODE_ENTER)) || (actionId == EditorInfo.IME_ACTION_DONE))
+                binding.activityMapsSubmitButton.performClick();
+            return false;
+        });
+        InputFilter filter = (source, start, end, dest, dstart, dend) -> {
+            for (int i = start; i < end; i++) {
+                if (!Character.isDigit(source.charAt(i))&& source.charAt(i)!='-'&& source.charAt(i)!='.'&& source.charAt(i)!=',' && source.charAt(i)!=' ') {
+                    return "";
+                }
+            }
+            return null;
+        };
+        latLongEditText.setFilters(new InputFilter[] { filter });
+
     }
 
     /**
@@ -100,28 +118,28 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     @Override
     public void onMapReady(@NonNull GoogleMap googleMap) {
         mMap = googleMap;
-        if (checkPermission()){
-            if(preferencesConfig.readLocation()!=null && preferencesConfig.readRadius()!=null){
+        if (checkPermission()) {
+            if (preferencesConfig.readLocation() != null && preferencesConfig.readRadius() != null) {
                 latLongEditText.setText(preferencesConfig.readLocation());
                 radiusEditText.setText(preferencesConfig.readRadius());
                 binding.activityMapsSubmitButton.performClick();
-            }else
-                getUserLocation();}
-        else
+            } else
+                getUserLocation();
+        } else
             requestLocationPermissions();
     }
 
     private void requestLocationPermissions() {
-        if (Build.VERSION.SDK_INT < 29)
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q)
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.ACCESS_FINE_LOCATION}, FINE_LOCATION_ACCESS_REQUEST_CODE);
-        else if (Build.VERSION.SDK_INT == 29)
+        else if (Build.VERSION.SDK_INT == Build.VERSION_CODES.Q)
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_BACKGROUND_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.ACCESS_FINE_LOCATION}, BACKGROUND_LOCATION_ACCESS_REQUEST_CODE);
         else
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, FINE_LOCATION_ACCESS_REQUEST_CODE);
     }
 
     private boolean checkPermission() {
-        if (Build.VERSION.SDK_INT >= 29)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
             return ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_BACKGROUND_LOCATION) == PackageManager.PERMISSION_GRANTED;
         else
             return ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED;
@@ -130,7 +148,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if ((Build.VERSION.SDK_INT < 29 && requestCode == FINE_LOCATION_ACCESS_REQUEST_CODE) || (Build.VERSION.SDK_INT == 29 && requestCode == BACKGROUND_LOCATION_ACCESS_REQUEST_CODE) || (Build.VERSION.SDK_INT > 29 && requestCode == BACKGROUND_LOCATION_ACCESS_REQUEST_CODE)) {
+        if ((Build.VERSION.SDK_INT < Build.VERSION_CODES.Q && requestCode == FINE_LOCATION_ACCESS_REQUEST_CODE) || (Build.VERSION.SDK_INT == Build.VERSION_CODES.Q && requestCode == BACKGROUND_LOCATION_ACCESS_REQUEST_CODE) || (Build.VERSION.SDK_INT > Build.VERSION_CODES.Q && requestCode == BACKGROUND_LOCATION_ACCESS_REQUEST_CODE)) {
             if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                 if (checkPermission())
                     mMap.setMyLocationEnabled(true);
@@ -141,7 +159,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 Log.e(TAG, "onRequestPermissionsResult: " + "background permission DENIED");
                 Toast.makeText(this, "Permission Denied\nThe app will not work", Toast.LENGTH_SHORT).show();
             }
-        } else if (Build.VERSION.SDK_INT > 29 && requestCode == FINE_LOCATION_ACCESS_REQUEST_CODE) {
+        } else if (Build.VERSION.SDK_INT > Build.VERSION_CODES.Q && requestCode == FINE_LOCATION_ACCESS_REQUEST_CODE) {
             if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                 Log.e(TAG, "onRequestPermissionsResult: " + "Android 11 FINE permission granted");
                 //For Android 11 we have to perform incremental request to get background location.
@@ -163,7 +181,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         LatLng userLocation = new LatLng(location.getLatitude(), location.getLongitude());
                         mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(userLocation, 17));
                         addMarker(userLocation);
-                        addressEditText.setText(String.format("Current Location : %s,%s", userLocation.latitude, userLocation.longitude));
+                        setAddress(userLocation);
                     }
 
                     @Override
@@ -210,12 +228,12 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         if (!TextUtils.isEmpty(inputCoordinates) && inputCoordinates.matches(twoDoublesRegularExpression))
             if (!TextUtils.isEmpty(radiusString)) {
                 String[] latLngString = inputCoordinates.split(",");
-                latLng = new LatLng(Double.parseDouble(latLngString[0]), Double.parseDouble(latLngString[1].trim()));
+                LatLng coordinates = new LatLng(Double.parseDouble(latLngString[0]), Double.parseDouble(latLngString[1].trim()));
                 float radius = Float.parseFloat(radiusString);
                 preferencesConfig.writeLocation(inputCoordinates);
                 preferencesConfig.writeRadius(radiusString);
-                setMarkers(latLng, radius);
-                setAddress();
+                setMarkers(coordinates, radius);
+                setAddress(coordinates);
             } else
                 Toast.makeText(this, "Radius can't be blank\nPlease enter radius", Toast.LENGTH_SHORT).show();
         else
@@ -257,11 +275,11 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     .addOnFailureListener(e -> Log.e(TAG, "onFailure: " + geofenceHelper.getErrorString(e)));
     }
 
-    private void setAddress() {
+    private void setAddress(LatLng coordinates) {
         List<Address> addresses;
         Geocoder geocoder = new Geocoder(this, Locale.getDefault());
         try {
-            addresses = geocoder.getFromLocation(latLng.latitude, latLng.longitude, 1);
+            addresses = geocoder.getFromLocation(coordinates.latitude, coordinates.longitude, 1);
             String address = addresses.get(0).getAddressLine(0);
             if (!TextUtils.isEmpty(address)) {
                 addressEditText.setText(address);
