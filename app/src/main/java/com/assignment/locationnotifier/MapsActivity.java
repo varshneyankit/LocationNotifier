@@ -16,7 +16,6 @@ import android.os.Build;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.text.InputFilter;
-import android.text.Spanned;
 import android.text.TextUtils;
 import android.util.Log;
 import android.view.KeyEvent;
@@ -96,13 +95,14 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         });
         InputFilter filter = (source, start, end, dest, dstart, dend) -> {
             for (int i = start; i < end; i++) {
-                if (!Character.isDigit(source.charAt(i))&& source.charAt(i)!='-'&& source.charAt(i)!='.'&& source.charAt(i)!=',' && source.charAt(i)!=' ') {
-                    return "";
+                if (!Character.isDigit(source.charAt(i)) && source.charAt(i) != '-' && source.charAt(i) != '.' && source.charAt(i) != ',' && source.charAt(i) != ' ') {
+                    Log.e(TAG, "onCreate: filter " + source + "\t" + start + "\t" + end);
+                    return source.toString().replace("" + source.charAt(i), "");
                 }
             }
             return null;
         };
-        latLongEditText.setFilters(new InputFilter[] { filter });
+        latLongEditText.setFilters(new InputFilter[]{filter});
 
     }
 
@@ -284,10 +284,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             if (!TextUtils.isEmpty(address)) {
                 addressEditText.setText(address);
             } else
-                addressEditText.setText("No Address found for this Coordinates");
+                addressEditText.setText(R.string.address_error);
 
         } catch (IOException e) {
             e.printStackTrace();
+        } catch (IndexOutOfBoundsException e) {
+            Toast.makeText(this, R.string.address_error, Toast.LENGTH_SHORT).show();
+            addressEditText.setText(String.format("%s, %s", coordinates.latitude, coordinates.longitude));
         }
     }
 }

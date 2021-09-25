@@ -4,4 +4,5 @@
     <string name="maps_latlong_hint">Enter Lat, Long</string>
     <string name="maps_radius_hint">Enter Radius (in meters)</string>
     <string name="maps_button_text">Submit</string>
+    <string name="address_error">No Address found for this Coordinates</string>
 </resources>
